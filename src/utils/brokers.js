@@ -1648,3 +1648,108 @@ export async function useTopstepX(param, param2) {
         resolve()
     })
 }
+/**
+**************************
+ * WARRIOR TRADING SIM
+ ****************************/
+export async function useWarriorTradingSim(param) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            let tempArray = []
+
+            if (typeof param === "string") {
+                // Parse the CSV data - Warrior Trading SIM format: Date,Time,Symbol,Side,Quantity,Price,
+                let lines = param.trim().split('\n')
+                
+                lines.forEach(line => {
+                    if (line.trim()) {
+                        let parts = line.split(',')
+                        if (parts.length >= 6) {
+                            tempArray.push({
+                                Date: parts[0],
+                                Time: parts[1], 
+                                Symbol: parts[2],
+                                Side: parts[3],
+                                Quantity: parts[4],
+                                Price: parts[5]
+                            })
+                        }
+                    }
+                })
+            } else {
+                tempArray = param
+            }
+
+            tempArray.forEach(element => {
+                if (element.Date && element.Time && element.Symbol && element.Side && element.Quantity && element.Price) {
+                    let temp = {}
+
+                    // Account
+                    temp.Account = "WarriorTradingSIM"
+
+                    // Convert date from MM/DD/YY to MM/DD/YYYY format
+                    let dateParts = element.Date.split('/')
+                    let year = dateParts[2]
+                    // Convert 2-digit year to 4-digit year (assuming 20xx)
+                    if (year.length === 2) {
+                        year = '20' + year
+                    }
+                    let formattedDate = dateParts[0] + '/' + dateParts[1] + '/' + year
+
+                    temp['T/D'] = formattedDate
+                    temp['S/D'] = formattedDate
+
+                    // Currency
+                    temp.Currency = "USD"
+
+                    // Type - assuming stocks for Warrior Trading SIM
+                    temp.Type = "stock"
+
+                    // Side mapping
+                    temp.Side = element.Side // B for Buy, S for Sell
+
+                    // Symbol
+                    temp.Symbol = element.Symbol
+                    temp.SymbolOriginal = element.Symbol
+
+                    // Quantity and Price
+                    temp.Qty = parseInt(element.Quantity)
+                    temp.Price = parseFloat(element.Price)
+
+                    // Execution Time
+                    temp['Exec Time'] = element.Time
+
+                    // Fees and commissions (assuming $0 for SIM)
+                    temp.Comm = 0
+                    temp.SEC = 0
+                    temp.TAF = 0
+                    temp.NSCC = 0
+                    temp.Nasdaq = 0
+                    temp['ECN Remove'] = 0
+                    temp['ECN Add'] = 0
+
+                    // Calculate proceeds
+                    let quantity = parseInt(element.Quantity)
+                    let price = parseFloat(element.Price)
+                    let grossProceeds = element.Side === "B" ? -(quantity * price) : (quantity * price)
+                    
+                    temp['Gross Proceeds'] = grossProceeds
+                    temp['Net Proceeds'] = grossProceeds // No fees in SIM
+
+                    // Other fields
+                    temp['Clr Broker'] = ""
+                    temp.Liq = ""
+                    temp.Note = ""
+
+                    tradesData.push(temp)
+                }
+            });
+
+            console.log(" -> Warrior Trading SIM Trades Data\n" + JSON.stringify(tradesData))
+        } catch (error) {
+            console.log("  --> ERROR " + error)
+            reject(error)
+        }
+        resolve()
+    })
+}

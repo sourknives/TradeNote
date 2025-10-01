@@ -153,3 +153,113 @@ if __name__ == "__main__":
     process_trades(input_file, output_file)
 ``
 
+
+# Warrior Trading SIM
+### Exporting Trades from Warrior Trading SIM
+1. In Warrior Trading SIM, go to your trading platform
+2. Export your trades in the default format (Date,Time,Symbol,Side,Quantity,Price,)
+3. Save the file as a .txt or .csv file
+
+### Python Script to Convert to TradeNote Template
+#### Considerations
+- Warrior Trading SIM exports in a simple format: Date,Time,Symbol,Side,Quantity,Price,
+- The script converts this to the TradeNote template format
+- Assumes $0 commissions and fees for SIM trading
+- Converts 2-digit years (25) to 4-digit years (2025)
+
+#### Script
+````python
+import csv
+import sys
+from datetime import datetime
+
+def convert_warrior_sim_to_template(input_file, output_file):
+    """
+    Convert Warrior Trading SIM export to TradeNote template format
+    """
+    
+    with open(input_file, 'r') as infile, open(output_file, 'w', newline='') as outfile:
+        # Write header for TradeNote template
+        fieldnames = [
+            'Account', 'T/D', 'S/D', 'Currency', 'Type', 'Side', 'Symbol', 'Qty', 'Price', 'Exec Time',
+            'Comm', 'SEC', 'TAF', 'NSCC', 'Nasdaq', 'ECN Remove', 'ECN Add', 'Gross Proceeds', 'Net Proceeds',
+            'Clr Broker', 'Liq', 'Note'
+        ]
+        
+        writer = csv.DictWriter(outfile, fieldnames=fieldnames)
+        writer.writeheader()
+        
+        # Process each line from Warrior Trading SIM export
+        for line_num, line in enumerate(infile, 1):
+            line = line.strip()
+            if not line:
+                continue
+                
+            try:
+                # Parse the line: Date,Time,Symbol,Side,Quantity,Price,
+                parts = line.split(',')
+                if len(parts) < 6:
+                    print(f"Skipping line {line_num}: insufficient data")
+                    continue
+                
+                date_str = parts[0]
+                time_str = parts[1] 
+                symbol = parts[2]
+                side = parts[3]
+                quantity = int(parts[4])
+                price = float(parts[5])
+                
+                # Convert date from MM/DD/YY to MM/DD/YYYY
+                date_parts = date_str.split('/')
+                if len(date_parts[2]) == 2:
+                    year = '20' + date_parts[2]
+                else:
+                    year = date_parts[2]
+                formatted_date = f"{date_parts[0]}/{date_parts[1]}/{year}"
+                
+                # Calculate gross proceeds
+                gross_proceeds = -(quantity * price) if side == 'B' else (quantity * price)
+                
+                # Write to template format
+                writer.writerow({
+                    'Account': 'WarriorTradingSIM',
+                    'T/D': formatted_date,
+                    'S/D': formatted_date,
+                    'Currency': 'USD',
+                    'Type': 'stock',
+                    'Side': side,
+                    'Symbol': symbol,
+                    'Qty': quantity,
+                    'Price': price,
+                    'Exec Time': time_str,
+                    'Comm': 0,
+                    'SEC': 0,
+                    'TAF': 0,
+                    'NSCC': 0,
+                    'Nasdaq': 0,
+                    'ECN Remove': 0,
+                    'ECN Add': 0,
+                    'Gross Proceeds': gross_proceeds,
+                    'Net Proceeds': gross_proceeds,  # No fees in SIM
+                    'Clr Broker': '',
+                    'Liq': '',
+                    'Note': ''
+                })
+                
+            except (ValueError, IndexError) as e:
+                print(f"Error processing line {line_num}: {e}")
+                continue
+    
+    print(f"Conversion complete. Output saved to {output_file}")
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print("Usage: python warrior_sim_converter.py <input_file> <output_file>")
+        print("Example: python warrior_sim_converter.py trades.txt tradenote_template.csv")
+        sys.exit(1)
+    
+    input_file = sys.argv[1]
+    output_file = sys.argv[2]
+    
+    convert_warrior_sim_to_template(input_file, output_file)
+````
