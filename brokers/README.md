@@ -201,4 +201,12 @@ Please note that trades need to be ordered in ascending order
 4.	Select date range and click Export.
 
 <img src="https://f003.backblazeb2.com/file/7ak-public/tradenote/topstepx3.png" width="250">
+
+# Warrior Trading SIM
+1. In your Warrior Trading SIM platform, navigate to your trade history or export section.
+2. Export your trades in the default format which should include: Date, Time, Symbol, Side, Quantity, Price.
+3. Save the file as a .txt or .csv file.
+4. The format should look like: `09/15/25,07:07:31,EVTV,B,100,7.47,`
+
+Note: TradeNote now has native support for Warrior Trading SIM format. Simply select "Warrior Trading SIM" from the broker dropdown and upload your export file directly. Alternatively, you can use the conversion script in the [conversion scripts](https://github.com/Eleven-Trading/TradeNote/blob/main/brokers/conversionScripts.md) section to convert to the template format.
  

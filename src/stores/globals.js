@@ -3285,6 +3285,12 @@ export const brokers = reactive([{
     label: "TopstepX",
     assetTypes: ["futures"],
     autoSync: false
+},
+{
+    value: "warriorTradingSim",
+    label: "Warrior Trading SIM",
+    assetTypes: ["stocks"],
+    autoSync: false
 }
 ])
 
