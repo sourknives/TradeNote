@@ -209,4 +209,24 @@ Please note that trades need to be ordered in ascending order
 4. The format should look like: `09/15/25,07:07:31,EVTV,B,100,7.47,`
 
 Note: TradeNote now has native support for Warrior Trading SIM format. Simply select "Warrior Trading SIM" from the broker dropdown and upload your export file directly. Alternatively, you can use the conversion script in the [conversion scripts](https://github.com/Eleven-Trading/TradeNote/blob/main/brokers/conversionScripts.md) section to convert to the template format.
- 
+
+# Webull
+TradeNote supports two import formats for Webull. Both are selected via the "Webull" broker dropdown — the format is detected automatically from the file extension.
+
+## Option 1: PDF Trade Confirmation (Recommended — includes fees)
+1. Log in to the Webull web platform or app.
+2. Go to Account > Statements > Trade Confirmation (or access via [webull.com/edocs](https://www.webull.com/edocs)).
+3. Select the statement period you want to import.
+4. Download the PDF file.
+5. In TradeNote, select "Webull" and upload the PDF.
+
+Note: Trade confirmation PDFs do not include execution times. All trades will be imported with a placeholder time of 00:00:00. This does not affect P&L calculations.
+
+## Option 2: CSV Order Export (simpler, but no fee data)
+1. In the Webull mobile app, go to Account > History > Orders.
+2. Tap the download icon (top right) > Export Orders > Submit.
+3. You will receive an email with the CSV attached within a few minutes.
+4. In TradeNote, select "Webull" and upload the CSV.
+
+Note: The CSV export does not include commissions or regulatory fees. All fee fields will be imported as zero. For accurate fee tracking, use the PDF import method instead.
+

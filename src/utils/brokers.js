@@ -1753,3 +1753,375 @@ export async function useWarriorTradingSim(param) {
         resolve()
     })
 }
+
+/****************************
+ * WEBULL
+ ****************************/
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js'
+
+export async function useWebull(param, fileName = "") {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const isPdf = fileName.toLowerCase().endsWith('.pdf') || isPdfMagicBytes(param)
+            if (isPdf) {
+                await parseWebullPdf(param)
+            } else {
+                await parseWebullCsv(param)
+            }
+            console.log(" -> Webull Trades Data\n" + JSON.stringify(tradesData))
+        } catch (error) {
+            console.log("  --> ERROR " + error)
+            reject(error)
+        }
+        resolve()
+    })
+}
+
+function isPdfMagicBytes(buffer) {
+    if (!buffer || !(buffer instanceof ArrayBuffer) || buffer.byteLength < 4) return false
+    const bytes = new Uint8Array(buffer, 0, 4)
+    return bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46
+}
+
+/****************************
+ * WEBULL PDF PARSING
+ ****************************/
+async function parseWebullPdf(buffer) {
+    const loadingTask = pdfjsLib.getDocument({ data: buffer })
+    const pdf = await loadingTask.promise
+    let allItems = []
+
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum)
+        const content = await page.getTextContent()
+        content.items.forEach(item => {
+            if (item.str.trim()) {
+                allItems.push({
+                    str: item.str.trim(),
+                    x: Math.round(item.transform[4]),
+                    y: Math.round(item.transform[5]),
+                    pageNum
+                })
+            }
+        })
+    }
+
+    // Sort: page asc, Y desc (higher Y = top of page in PDF coords), X asc
+    allItems.sort((a, b) => {
+        if (a.pageNum !== b.pageNum) return a.pageNum - b.pageNum
+        if (Math.abs(a.y - b.y) > 2) return b.y - a.y
+        return a.x - b.x
+    })
+
+    const rows = groupIntoRows(allItems, 3)
+
+    // Find "SECURITIES TRADING ACTIVITY" section
+    const sectionIdx = rows.findIndex(row =>
+        row.some(i => i.str.includes("SECURITIES TRADING ACTIVITY"))
+    )
+    if (sectionIdx === -1) {
+        throw new Error("Could not find SECURITIES TRADING ACTIVITY section. Please ensure this is a Webull trade confirmation PDF.")
+    }
+
+    // Find header row (contains both "Symbol" and "Cusip")
+    let headerIdx = -1
+    for (let i = sectionIdx; i < rows.length; i++) {
+        const texts = rows[i].map(r => r.str)
+        if (texts.some(t => t.includes("Symbol")) && texts.some(t => t.includes("Cusip"))) {
+            headerIdx = i
+            break
+        }
+    }
+    if (headerIdx === -1) {
+        throw new Error("Could not find trade table header row in Webull PDF.")
+    }
+
+    const colBounds = deriveColumnBounds(rows[headerIdx])
+
+    // Parse data rows
+    for (let i = headerIdx + 1; i < rows.length; i++) {
+        const row = rows[i]
+        const rowText = row.map(r => r.str).join(" ")
+
+        // Stop conditions
+        if (/TRADING SUMMARY/i.test(rowText)) break
+        if (/CASH AND CASH EQUIVALENTS/i.test(rowText)) break
+        if (/\bTotal\b/.test(rowText) && !/\bTotal\b.*\w{3,}/.test(rowText)) break
+
+        // Skip page headers/footers/section repeats
+        if (/Page \d+ of \d+/.test(rowText)) continue
+        if (rowText.includes("SECURITIES TRADING ACTIVITY")) continue
+
+        const cols = assignColumns(row, colBounds)
+
+        // Skip rows without a trade date (continuation lines, blank rows, symbol name rows)
+        if (!cols.tradeDate || !/\d{2}\/\d{2}\/\d{4}/.test(cols.tradeDate)) continue
+
+        const buySell = (cols.buySell || "").trim().toUpperCase()
+
+        // Skip cancelled trades
+        if (["BCXL", "SCXL", "BTCX", "STOX"].includes(buySell)) continue
+
+        const side = mapWebullPdfSide(buySell)
+        if (!side) {
+            console.log("  --> Skipping unknown Webull Buy/Sell code: " + buySell)
+            continue
+        }
+
+        // Symbol: first word in the symbol column (rest is company name)
+        let rawSymbol = (cols.symbol || "").trim()
+        const symbol = rawSymbol.split(/\s+/)[0]
+        if (!symbol) continue
+
+        const type = detectWebullAssetType(symbol, buySell)
+        const normalizedSymbol = normalizeWebullSymbol(symbol, type)
+
+        const tradeDate = cols.tradeDate.trim().substring(0, 10)
+        const settlDate = cols.settlDate ? cols.settlDate.trim().substring(0, 10) : tradeDate
+
+        const parseNum = s => parseFloat((s || "0").replace(/,/g, '')) || 0
+        const qty = Math.abs(parseNum(cols.quantity))
+        const price = Math.abs(parseNum(cols.price))
+        const grossAmount = parseNum(cols.grossAmount)
+        const commission = parseNum(cols.commission)
+        const feeOrTax = parseNum(cols.feeTax)
+        const netAmount = parseNum(cols.netAmount)
+
+        const account = cols.accountType ? "Webull-" + cols.accountType.trim() : "Webull"
+
+        const temp = {}
+        temp.Account = account
+        temp["T/D"] = tradeDate
+        temp["S/D"] = settlDate
+        temp.Currency = "USD"
+        temp.Type = type
+        temp.Side = side
+        temp.Symbol = normalizedSymbol
+        temp.SymbolOriginal = symbol
+        temp.Qty = qty.toString()
+        temp.Price = price.toString()
+        temp["Exec Time"] = "00:00:00"
+        temp.Comm = Math.abs(commission).toString()
+        temp.SEC = "0"
+        temp.TAF = Math.abs(feeOrTax).toString()
+        temp.NSCC = "0"
+        temp.Nasdaq = "0"
+        temp["ECN Remove"] = "0"
+        temp["ECN Add"] = "0"
+        temp["Gross Proceeds"] = grossAmount.toString()
+        temp["Net Proceeds"] = netAmount.toString()
+        temp["Clr Broker"] = ""
+        temp.Liq = ""
+        temp.Note = ""
+
+        tradesData.push(temp)
+    }
+}
+
+function groupIntoRows(items, tolerance) {
+    const rows = []
+    let currentRow = []
+    let currentY = null
+    items.forEach(item => {
+        if (currentY === null || Math.abs(item.y - currentY) <= tolerance) {
+            currentRow.push(item)
+            if (currentY === null) {
+                currentY = item.y
+            }
+        } else {
+            if (currentRow.length) rows.push(currentRow)
+            currentRow = [item]
+            currentY = item.y
+        }
+    })
+    if (currentRow.length) rows.push(currentRow)
+    return rows
+}
+
+function deriveColumnBounds(headerRow) {
+    const labelMap = {
+        "Symbol": "symbol",
+        "Cusip": "cusip",
+        "Trade Date": "tradeDate",
+        "Settlement": "settlDate",
+        "Account": "accountType",
+        "Buy/Sell": "buySell",
+        "Quantity": "quantity",
+        "Price": "price",
+        "Gross": "grossAmount",
+        "Commission": "commission",
+        "Fee": "feeTax",
+        "Net Amount": "netAmount",
+        "MKT": "mkt"
+    }
+    const colPositions = {}
+    headerRow.forEach(item => {
+        for (const [label, colName] of Object.entries(labelMap)) {
+            if (item.str.includes(label) && !colPositions[colName]) {
+                colPositions[colName] = item.x
+                break
+            }
+        }
+    })
+
+    const sorted = Object.entries(colPositions).sort((a, b) => a[1] - b[1])
+    return sorted.map(([name, x], i) => ({
+        name,
+        minX: x - 10,
+        maxX: i + 1 < sorted.length ? (x + sorted[i + 1][1]) / 2 : Infinity
+    }))
+}
+
+function assignColumns(row, bounds) {
+    const result = {}
+    row.forEach(item => {
+        const col = bounds.find(b => item.x >= b.minX && item.x < b.maxX)
+        if (col) {
+            result[col.name] = result[col.name]
+                ? result[col.name] + " " + item.str
+                : item.str
+        }
+    })
+    return result
+}
+
+function mapWebullPdfSide(buySell) {
+    switch (buySell) {
+        case "B": return "B"
+        case "S": return "S"
+        case "BTC": return "BC"
+        case "STO": return "SS"
+        default: return null
+    }
+}
+
+const OCC_PATTERN = /^([A-Z]{1,5})(\d{6})([CP])(\d{8})$/
+
+function detectWebullAssetType(symbol, buySell) {
+    if (buySell === "BTC" || buySell === "STO") {
+        const m = OCC_PATTERN.exec(symbol)
+        if (m) return m[3] === "C" ? "call" : "put"
+        return "call"
+    }
+    const m = OCC_PATTERN.exec(symbol)
+    if (m) return m[3] === "C" ? "call" : "put"
+    return "stock"
+}
+
+function normalizeWebullSymbol(symbol, type) {
+    if (type === "call" || type === "put") {
+        const m = OCC_PATTERN.exec(symbol)
+        if (m) return m[1]
+    }
+    return symbol
+}
+
+/****************************
+ * WEBULL CSV PARSING
+ ****************************/
+// Webull CSV format (from "Export Orders" in Webull app):
+// Columns: Name, Symbol, Side, Status, Filled, Total Qty, Price, Avg Price,
+//          Time-in-Force, Placed Time, Filled Time
+// - Side: "Buy" or "Sell"
+// - Status: "Filled" or "Cancelled"
+// - Price: limit price with "@" prefix (e.g., "@12.5000000000")
+// - Avg Price: actual fill price without prefix (e.g., "12.5000000000")
+// - Placed Time / Filled Time: "MM/DD/YYYY HH:mm:ss EST"
+async function parseWebullCsv(buffer) {
+    const text = new TextDecoder('utf-8').decode(buffer)
+    const papaParse = Papa.parse(text, { header: true, skipEmptyLines: true })
+    const rows = papaParse.data
+
+    if (rows.length === 0) {
+        console.log("  --> Webull CSV: no data rows found")
+        return
+    }
+
+    // Validate required columns
+    const firstRow = rows[0]
+    if (!firstRow.hasOwnProperty("Symbol") || !firstRow.hasOwnProperty("Side")) {
+        throw new Error("Webull CSV is missing required columns (Symbol, Side). Please check you are uploading the correct Webull order export file.")
+    }
+
+    rows.forEach(element => {
+        // Skip non-filled orders
+        const status = (element.Status || "").trim()
+        if (status && status !== "Filled") return
+
+        const symbol = (element.Symbol || "").trim()
+        if (!symbol) return
+
+        const sideRaw = (element.Side || "").trim()
+        const side = mapWebullCsvSide(sideRaw)
+        if (!side) return
+
+        const type = detectWebullAssetType(symbol, sideRaw.toUpperCase())
+
+        // Use "Filled Time" for date/time, fall back to "Placed Time"
+        const timeStr = (element["Filled Time"] || element["Placed Time"] || "").trim()
+        if (!timeStr) return
+
+        const { date: tradeDate, time: execTime } = parseWebullCsvDateTime(timeStr)
+
+        // Use "Filled" column for quantity (actual filled qty), fall back to "Total Qty"
+        const qty = Math.abs(parseFloat((element.Filled || element["Total Qty"] || "0").replace(/,/g, ''))) || 0
+        if (qty === 0) return
+
+        // Use "Avg Price" for the actual fill price, strip "@" from "Price" as fallback
+        let price = 0
+        if (element["Avg Price"] && element["Avg Price"].trim()) {
+            price = parseFloat(element["Avg Price"].replace(/,/g, '')) || 0
+        } else if (element.Price) {
+            price = parseFloat(element.Price.replace(/^@/, '').replace(/,/g, '')) || 0
+        }
+
+        // Compute gross proceeds (no Amount column in Webull CSV)
+        // Convention: buys are negative, sells are positive
+        const grossProceeds = side === "B" ? -(qty * price) : (qty * price)
+
+        const temp = {}
+        temp.Account = "Webull"
+        temp["T/D"] = tradeDate
+        temp["S/D"] = tradeDate
+        temp.Currency = "USD"
+        temp.Type = type
+        temp.Side = side
+        temp.Symbol = normalizeWebullSymbol(symbol, type)
+        temp.SymbolOriginal = symbol
+        temp.Qty = qty.toString()
+        temp.Price = price.toString()
+        temp["Exec Time"] = execTime
+        temp.Comm = "0"
+        temp.SEC = "0"
+        temp.TAF = "0"
+        temp.NSCC = "0"
+        temp.Nasdaq = "0"
+        temp["ECN Remove"] = "0"
+        temp["ECN Add"] = "0"
+        temp["Gross Proceeds"] = grossProceeds.toString()
+        temp["Net Proceeds"] = grossProceeds.toString()
+        temp["Clr Broker"] = ""
+        temp.Liq = ""
+        temp.Note = ""
+
+        tradesData.push(temp)
+    })
+}
+
+function mapWebullCsvSide(sideRaw) {
+    const s = sideRaw.toUpperCase()
+    if (s === "BUY" || s === "B") return "B"
+    if (s === "SELL" || s === "S") return "S"
+    console.log("  --> Unknown Webull CSV Side: " + sideRaw)
+    return null
+}
+
+function parseWebullCsvDateTime(dateTimeStr) {
+    // Format: "MM/DD/YYYY HH:mm:ss EST" or "MM/DD/YYYY HH:mm:ss"
+    // Strip timezone suffix if present
+    const cleaned = dateTimeStr.replace(/\s+(EST|EDT|CST|CDT|MST|MDT|PST|PDT)$/i, '')
+    const parts = cleaned.split(' ')
+    const date = parts[0] || ""    // MM/DD/YYYY
+    const time = parts[1] || "00:00:00"  // HH:mm:ss
+    return { date, time }
+}

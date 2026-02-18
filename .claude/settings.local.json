@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Desktop_Commander__write_file",
+      "WebFetch(domain:developer.webull.com)",
+      "WebFetch(domain:www.webull.com)",
+      "WebFetch(domain:support.tradelogsoftware.com)",
+      "WebFetch(domain:snaptrade.com)",
+      "WebFetch(domain:www.pocketportfolio.app)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:tradenalize.com)",
+      "WebFetch(domain:support.portseido.com)",
+      "WebFetch(domain:www.tradervue.com)",
+      "WebFetch(domain:www.tradesviz.com)",
+      "WebFetch(domain:apexfintechsolutions.com)"
+    ]
+  }
+}

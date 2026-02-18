@@ -3291,6 +3291,12 @@ export const brokers = reactive([{
     label: "Warrior Trading SIM",
     assetTypes: ["stocks"],
     autoSync: false
+},
+{
+    value: "webull",
+    label: "Webull",
+    assetTypes: ["stocks", "options"],
+    autoSync: false
 }
 ])
 

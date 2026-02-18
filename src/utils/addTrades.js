@@ -1,5 +1,5 @@
 import { filteredTradesTrades, blotter, pAndL, tradeExcursionId, spinnerLoadingPage, currentUser, selectedBroker, tradesData, timeZoneTrade, uploadMfePrices, executions, tradeId, existingImports, trades, gotExistingTradesArray, existingTradesArray, brokerData, selectedTradovateTier, queryLimit, queryLimitExistingTrades, marketCloseTime } from '../stores/globals.js'
-import { useBrokerHeldentrader, useBrokerInteractiveBrokers, useBrokerMetaTrader5, useBrokerTdAmeritrade, useBrokerTradeStation, useBrokerTradeZero, useTradovate, useNinjaTrader, useRithmic, useFundTraders, useTastyTrade, useTopstepX, useWarriorTradingSim } from './brokers.js'
+import { useBrokerHeldentrader, useBrokerInteractiveBrokers, useBrokerMetaTrader5, useBrokerTdAmeritrade, useBrokerTradeStation, useBrokerTradeZero, useTradovate, useNinjaTrader, useRithmic, useFundTraders, useTastyTrade, useTopstepX, useWarriorTradingSim, useWebull } from './brokers.js'
 import { useChartFormat, useDateTimeFormat, useDecimalsArithmetic, useInitParse, useTimeFormat } from './utils.js'
 
 /* MODULES */
@@ -144,7 +144,7 @@ export async function useImportTrades(param1, param2, param3, param0) {
             }
         }
 
-        let readAsArrayBufferArray = ["metaTrader5"]
+        let readAsArrayBufferArray = ["metaTrader5", "webull"]
         if (readAsArrayBufferArray.includes(selectedBroker.value)) {
             if (param2 == "api") {
                 fileInput = param1
@@ -289,6 +289,17 @@ export async function useImportTrades(param1, param2, param3, param0) {
         if (selectedBroker.value == "warriorTradingSim") {
             console.log(" -> Warrior Trading SIM")
             await useWarriorTradingSim(fileInput).catch(error => {
+                importFileErrorFunction(error)
+            })
+        }
+
+        /****************************
+         * WEBULL
+         ****************************/
+        if (selectedBroker.value == "webull") {
+            console.log(" -> Webull")
+            let fileName = (param2 == "file" && files && files[0]) ? files[0].name : ""
+            await useWebull(fileInput, fileName).catch(error => {
                 importFileErrorFunction(error)
             })
         }
