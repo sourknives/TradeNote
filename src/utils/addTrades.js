@@ -135,7 +135,7 @@ export async function useImportTrades(param1, param2, param3, param0) {
 
         }
 
-        let readAsTextArray = ["tradeZero", "template", "tdAmeritrade", "interactiveBrokers" , "tradovate", "ninjaTrader", "heldentrader", "rithmic", "fundTraders", "tastyTrade", "topstepX", "warriorTradingSim"]
+        let readAsTextArray = ["tradeZero", "template", "tdAmeritrade", "interactiveBrokers" , "tradovate", "ninjaTrader", "heldentrader", "rithmic", "fundTraders", "tastyTrade", "topstepX", "warriorTradingSim", "webull"]
         if (readAsTextArray.includes(selectedBroker.value)) {
             if (param2 == "api") {
                 fileInput = param1
@@ -144,7 +144,7 @@ export async function useImportTrades(param1, param2, param3, param0) {
             }
         }
 
-        let readAsArrayBufferArray = ["metaTrader5", "webull"]
+        let readAsArrayBufferArray = ["metaTrader5"]
         if (readAsArrayBufferArray.includes(selectedBroker.value)) {
             if (param2 == "api") {
                 fileInput = param1
@@ -298,8 +298,7 @@ export async function useImportTrades(param1, param2, param3, param0) {
          ****************************/
         if (selectedBroker.value == "webull") {
             console.log(" -> Webull")
-            let fileName = (param2 == "file" && files && files[0]) ? files[0].name : ""
-            await useWebull(fileInput, fileName).catch(error => {
+            await useWebull(fileInput).catch(error => {
                 importFileErrorFunction(error)
             })
         }
