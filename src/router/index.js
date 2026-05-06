@@ -73,6 +73,16 @@ const router = createRouter({
             import('../views/Calendar.vue')
     },
     {
+        path: '/reports',
+        name: 'reports',
+        meta: {
+            title: "Reports",
+            layout: DashboardLayout
+        },
+        component: () =>
+            import('../views/Reports.vue')
+    },
+    {
         path: '/daily',
         name: 'daily',
         meta: {

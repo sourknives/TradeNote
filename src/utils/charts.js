@@ -1,4 +1,4 @@
-import { totals, amountCase, totalsByDate, pageId, selectedTimeFrame, groups, timeZoneTrade, selectedRatio, filteredTrades, selectedGrossNet, satisfactionArray, dailyChartZoom, barChartNegativeTagGroups } from "../stores/globals.js"
+import { totals, amountCase, totalsByDate, pageId, selectedTimeFrame, groups, timeZoneTrade, selectedRatio, filteredTrades, selectedGrossNet, satisfactionArray, dailyChartZoom, barChartNegativeTagGroups, reportDrawdownStats, filteredTradesTrades, reportOverviewPeriod } from "../stores/globals.js"
 import { useOneDecPercentFormat, useChartFormat, useThousandCurrencyFormat, useTwoDecCurrencyFormat, useTimeFormat, useHourMinuteFormat, useCapitalizeFirstLetter, useXDecCurrencyFormat, useXDecFormat } from "./utils.js"
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc.js'
@@ -30,35 +30,37 @@ const maxChartValues = 20
 
 
 export async function useECharts(param) {
-    for (let index = 1; index <= 2; index++) {
-        var chartId = 'pieChart' + index
-        //console.log("chartId " + chartId)
-        if (param == "clear") {
-            echarts.init(document.getElementById(chartId)).clear()
-        }
-
-        if (param == "init") {
-            let green
-            let red
-            if (index == 1) {
-                //green = probWins
-                //red = probLoss
-                green = (totals[amountCase.value + 'WinsCount'] / totals.trades)
-                red = (totals[amountCase.value + 'LossCount'] / totals.trades)
-                await usePieChart(chartId, green, red)
-
+    if (pageId.value === 'dashboard') {
+        for (let index = 1; index <= 2; index++) {
+            var chartId = 'pieChart' + index
+            //console.log("chartId " + chartId)
+            if (param == "clear") {
+                echarts.init(document.getElementById(chartId)).clear()
             }
-            if (index == 2 && satisfactionArray.length > 0) {
-                //green = satisfied
-                //red = dissatisfied
-                //console.log(" satisfactionArray " + JSON.stringify(satisfactionArray))
-                let satisfied = satisfactionArray.filter(obj => obj.satisfaction == true).length
-                let dissatisfied = satisfactionArray.filter(obj => obj.satisfaction == false).length
-                if (satisfactionArray.length > 0) {
-                    green = satisfied / satisfactionArray.length
-                    red = dissatisfied / satisfactionArray.length
+
+            if (param == "init") {
+                let green
+                let red
+                if (index == 1) {
+                    //green = probWins
+                    //red = probLoss
+                    green = (totals[amountCase.value + 'WinsCount'] / totals.trades)
+                    red = (totals[amountCase.value + 'LossCount'] / totals.trades)
+                    await usePieChart(chartId, green, red)
+
                 }
-                await usePieChart(chartId, green, red)
+                if (index == 2 && satisfactionArray.length > 0) {
+                    //green = satisfied
+                    //red = dissatisfied
+                    //console.log(" satisfactionArray " + JSON.stringify(satisfactionArray))
+                    let satisfied = satisfactionArray.filter(obj => obj.satisfaction == true).length
+                    let dissatisfied = satisfactionArray.filter(obj => obj.satisfaction == false).length
+                    if (satisfactionArray.length > 0) {
+                        green = satisfied / satisfactionArray.length
+                        red = dissatisfied / satisfactionArray.length
+                    }
+                    await usePieChart(chartId, green, red)
+                }
             }
         }
     }
@@ -80,6 +82,15 @@ export async function useECharts(param) {
     handleCharts('barChart', useBarChart);
     handleCharts('barChartNegative', useBarChartNegative);
 
+    // Report chart types
+    handleCharts('reportDailyPL', useReportDailyPLChart);
+    handleCharts('reportCumulativePL', useReportCumulativePLChart);
+    handleCharts('reportDailyVolume', useReportDailyVolumeChart);
+    handleCharts('reportWinRate', useReportWinRateChart);
+    handleCharts('reportDrawdown', useReportDrawdownChart);
+    handleCharts('reportMovingAvg', useReportMovingAvgChart);
+    handleCharts('reportVolatility', useReportVolatilityChart);
+    handleCharts('reportBar', useReportBarChart);
 }
 
 export function useRenderDoubleLineChart() {
@@ -1971,6 +1982,327 @@ export function useCandlestickChart(ohlcTimestamps, ohlcPrices, ohlcVolumes, tra
             option.dataZoom[0].endValue = useHourMinuteFormat(dataZoomEndUnix)
         }
         candlestickChart.setOption(option);
+        resolve()
+    })
+}
+
+/**************************************
+* REPORT CHARTS
+**************************************/
+
+function useReportDailyPLChart(param) {
+    return new Promise((resolve, reject) => {
+        var myChart = echarts.init(document.getElementById(param))
+        var chartBarData = []
+        var chartXAxis = []
+
+        let objectY = JSON.parse(JSON.stringify(totalsByDate))
+        const keys = Object.keys(objectY)
+
+        // Filter keys based on reportOverviewPeriod
+        let periodDays = reportOverviewPeriod.value || 30
+        let now = dayjs().tz(timeZoneTrade.value).endOf('day').unix()
+        let cutoff = dayjs().tz(timeZoneTrade.value).subtract(periodDays, 'day').startOf('day').unix()
+
+        for (const key of keys) {
+            if (Number(key) < cutoff || Number(key) > now) continue
+            var element = objectY[key]
+            var proceeds = element[amountCase.value + 'Proceeds']
+            chartXAxis.push(useChartFormat(key))
+            chartBarData.push({
+                value: proceeds,
+                itemStyle: { color: proceeds >= 0 ? '#22c55e' : '#ef4444' }
+            })
+        }
+
+        var option = {
+            tooltip: { trigger: 'axis' },
+            grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+            xAxis: { type: 'category', data: chartXAxis, axisLabel: { color: white60 }, axisLine: { lineStyle: { color: white38 } } },
+            yAxis: { type: 'value', axisLabel: { color: white60, formatter: (v) => useThousandCurrencyFormat(v) }, splitLine: { lineStyle: { color: white38, width: 0.5 } } },
+            series: [{ type: 'bar', data: chartBarData }]
+        }
+        myChart.setOption(option)
+        resolve()
+    })
+}
+
+function useReportCumulativePLChart(param) {
+    return new Promise((resolve, reject) => {
+        var myChart = echarts.init(document.getElementById(param))
+        var chartData = []
+        var chartXAxis = []
+
+        let objectY = JSON.parse(JSON.stringify(totalsByDate))
+        const keys = Object.keys(objectY)
+
+        let periodDays = reportOverviewPeriod.value || 30
+        let now = dayjs().tz(timeZoneTrade.value).endOf('day').unix()
+        let cutoff = dayjs().tz(timeZoneTrade.value).subtract(periodDays, 'day').startOf('day').unix()
+        let cumulative = 0
+
+        for (const key of keys) {
+            if (Number(key) < cutoff || Number(key) > now) continue
+            var element = objectY[key]
+            cumulative += element[amountCase.value + 'Proceeds']
+            chartXAxis.push(useChartFormat(key))
+            chartData.push(cumulative)
+        }
+
+        var option = {
+            tooltip: { trigger: 'axis' },
+            grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+            xAxis: { type: 'category', data: chartXAxis, axisLabel: { color: white60 }, axisLine: { lineStyle: { color: white38 } } },
+            yAxis: { type: 'value', axisLabel: { color: white60, formatter: (v) => useThousandCurrencyFormat(v) }, splitLine: { lineStyle: { color: white38, width: 0.5 } } },
+            series: [{ type: 'line', data: chartData, smooth: true, areaStyle: { opacity: 0.15 }, lineStyle: { color: '#3b82f6' }, itemStyle: { color: '#3b82f6' } }]
+        }
+        myChart.setOption(option)
+        resolve()
+    })
+}
+
+function useReportDailyVolumeChart(param) {
+    return new Promise((resolve, reject) => {
+        var myChart = echarts.init(document.getElementById(param))
+        var chartBarData = []
+        var chartXAxis = []
+
+        let objectY = JSON.parse(JSON.stringify(totalsByDate))
+        const keys = Object.keys(objectY)
+
+        let periodDays = reportOverviewPeriod.value || 30
+        let now = dayjs().tz(timeZoneTrade.value).endOf('day').unix()
+        let cutoff = dayjs().tz(timeZoneTrade.value).subtract(periodDays, 'day').startOf('day').unix()
+
+        for (const key of keys) {
+            if (Number(key) < cutoff || Number(key) > now) continue
+            var element = objectY[key]
+            chartXAxis.push(useChartFormat(key))
+            chartBarData.push(element.buyQuantity || 0)
+        }
+
+        var option = {
+            tooltip: { trigger: 'axis' },
+            grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+            xAxis: { type: 'category', data: chartXAxis, axisLabel: { color: white60 }, axisLine: { lineStyle: { color: white38 } } },
+            yAxis: { type: 'value', axisLabel: { color: white60 }, splitLine: { lineStyle: { color: white38, width: 0.5 } } },
+            series: [{ type: 'bar', data: chartBarData, itemStyle: { color: '#6366f1' } }]
+        }
+        myChart.setOption(option)
+        resolve()
+    })
+}
+
+function useReportWinRateChart(param) {
+    return new Promise((resolve, reject) => {
+        var myChart = echarts.init(document.getElementById(param))
+        var chartBarData = []
+        var chartXAxis = []
+
+        let objectY = JSON.parse(JSON.stringify(totalsByDate))
+        const keys = Object.keys(objectY)
+
+        let periodDays = reportOverviewPeriod.value || 30
+        let now = dayjs().tz(timeZoneTrade.value).endOf('day').unix()
+        let cutoff = dayjs().tz(timeZoneTrade.value).subtract(periodDays, 'day').startOf('day').unix()
+
+        for (const key of keys) {
+            if (Number(key) < cutoff || Number(key) > now) continue
+            var element = objectY[key]
+            let wc = element[amountCase.value + 'WinsCount'] || 0
+            let total = element.trades || 0
+            let winRate = total > 0 ? (wc / total * 100) : 0
+            chartXAxis.push(useChartFormat(key))
+            chartBarData.push({
+                value: Math.round(winRate),
+                itemStyle: { color: winRate >= 50 ? '#22c55e' : '#ef4444' }
+            })
+        }
+
+        var option = {
+            tooltip: { trigger: 'axis', formatter: (params) => params[0].name + '<br/>Win Rate: ' + params[0].value + '%' },
+            grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+            xAxis: { type: 'category', data: chartXAxis, axisLabel: { color: white60 }, axisLine: { lineStyle: { color: white38 } } },
+            yAxis: { type: 'value', max: 100, axisLabel: { color: white60, formatter: '{value}%' }, splitLine: { lineStyle: { color: white38, width: 0.5 } } },
+            series: [{ type: 'bar', data: chartBarData }]
+        }
+        myChart.setOption(option)
+        resolve()
+    })
+}
+
+function useReportDrawdownChart(param) {
+    return new Promise((resolve, reject) => {
+        var myChart = echarts.init(document.getElementById(param))
+        if (!reportDrawdownStats.drawdownSeries || reportDrawdownStats.drawdownSeries.length == 0) {
+            resolve()
+            return
+        }
+
+        var option = {
+            tooltip: { trigger: 'axis', formatter: (params) => params[0].name + '<br/>Drawdown: ' + useThousandCurrencyFormat(params[0].value) },
+            grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+            xAxis: { type: 'category', data: reportDrawdownStats.drawdownDates || [], axisLabel: { color: white60 }, axisLine: { lineStyle: { color: white38 } } },
+            yAxis: { type: 'value', axisLabel: { color: white60, formatter: (v) => useThousandCurrencyFormat(v) }, splitLine: { lineStyle: { color: white38, width: 0.5 } } },
+            series: [{
+                type: 'line',
+                data: reportDrawdownStats.drawdownSeries,
+                areaStyle: { color: 'rgba(239, 68, 68, 0.3)' },
+                lineStyle: { color: '#ef4444' },
+                itemStyle: { color: '#ef4444' }
+            }]
+        }
+        myChart.setOption(option)
+        resolve()
+    })
+}
+
+function useReportMovingAvgChart(param) {
+    return new Promise((resolve, reject) => {
+        var myChart = echarts.init(document.getElementById(param))
+        if (!reportDrawdownStats.movingAvgSeries || reportDrawdownStats.movingAvgSeries.length == 0) {
+            resolve()
+            return
+        }
+
+        var option = {
+            tooltip: { trigger: 'axis' },
+            legend: { data: ['Daily P&L', 'Moving Average'], textStyle: { color: white60 } },
+            grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+            xAxis: { type: 'category', data: reportDrawdownStats.drawdownDates || [], axisLabel: { color: white60 }, axisLine: { lineStyle: { color: white38 } } },
+            yAxis: { type: 'value', axisLabel: { color: white60, formatter: (v) => useThousandCurrencyFormat(v) }, splitLine: { lineStyle: { color: white38, width: 0.5 } } },
+            series: [{
+                name: 'Daily P&L',
+                type: 'bar',
+                data: reportDrawdownStats.dailyPLSeries || [],
+                itemStyle: { color: (params) => params.value >= 0 ? '#22c55e' : '#ef4444' }
+            }, {
+                name: 'Moving Average',
+                type: 'line',
+                data: reportDrawdownStats.movingAvgSeries,
+                smooth: true,
+                lineStyle: { color: '#f59e0b', width: 2 },
+                itemStyle: { color: '#f59e0b' }
+            }]
+        }
+        myChart.setOption(option)
+        resolve()
+    })
+}
+
+function useReportVolatilityChart(param) {
+    return new Promise((resolve, reject) => {
+        var myChart = echarts.init(document.getElementById(param))
+        if (!reportDrawdownStats.volatilitySeries || reportDrawdownStats.volatilitySeries.length == 0) {
+            resolve()
+            return
+        }
+
+        var option = {
+            tooltip: { trigger: 'axis' },
+            grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+            xAxis: { type: 'category', data: reportDrawdownStats.drawdownDates || [], axisLabel: { color: white60 }, axisLine: { lineStyle: { color: white38 } } },
+            yAxis: { type: 'value', axisLabel: { color: white60, formatter: (v) => useThousandCurrencyFormat(v) }, splitLine: { lineStyle: { color: white38, width: 0.5 } } },
+            series: [{
+                type: 'line',
+                data: reportDrawdownStats.volatilitySeries,
+                smooth: true,
+                areaStyle: { opacity: 0.15 },
+                lineStyle: { color: '#8b5cf6' },
+                itemStyle: { color: '#8b5cf6' }
+            }]
+        }
+        myChart.setOption(option)
+        resolve()
+    })
+}
+
+function useReportBarChart(param) {
+    return new Promise((resolve, reject) => {
+        var myChart = echarts.init(document.getElementById(param))
+        // Generic bar chart for detailed sub-tabs
+        // Determine which group data to use based on chart ID
+        let chartId = param
+        let groupData = null
+        let xLabels = []
+        let barData = []
+
+        if (chartId == 'reportBarDay' || chartId == 'reportBarDayPerf') {
+            groupData = groups.day
+            let dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+            if (groupData) {
+                for (let d = 0; d <= 6; d++) {
+                    if (groupData[d]) {
+                        xLabels.push(dayNames[d])
+                        if (chartId == 'reportBarDay') {
+                            barData.push(groupData[d].length)
+                        } else {
+                            let sum = 0
+                            groupData[d].forEach(t => { sum += t[amountCase.value + 'Proceeds'] || 0 })
+                            barData.push({ value: sum, itemStyle: { color: sum >= 0 ? '#22c55e' : '#ef4444' } })
+                        }
+                    }
+                }
+            }
+        } else if (chartId == 'reportBarHour' || chartId == 'reportBarHourPerf') {
+            groupData = groups.timeframe
+            if (groupData) {
+                let sortedKeys = Object.keys(groupData).sort()
+                for (const key of sortedKeys) {
+                    xLabels.push(key)
+                    if (chartId == 'reportBarHour') {
+                        barData.push(groupData[key].length)
+                    } else {
+                        let sum = 0
+                        groupData[key].forEach(t => { sum += t[amountCase.value + 'Proceeds'] || 0 })
+                        barData.push({ value: sum, itemStyle: { color: sum >= 0 ? '#22c55e' : '#ef4444' } })
+                    }
+                }
+            }
+        } else if (chartId == 'reportBarEntryPrice') {
+            groupData = groups.entryPrice
+            if (groupData) {
+                let priceLabels = { 0: '<$5', 5: '$5-10', 10: '$10-15', 15: '$15-20', 20: '$20-30', 30: '$30+' }
+                let sortedKeys = Object.keys(groupData).sort((a, b) => Number(a) - Number(b))
+                for (const key of sortedKeys) {
+                    xLabels.push(priceLabels[key] || '$' + key)
+                    let sum = 0
+                    groupData[key].forEach(t => { sum += t[amountCase.value + 'Proceeds'] || 0 })
+                    barData.push({ value: sum, itemStyle: { color: sum >= 0 ? '#22c55e' : '#ef4444' } })
+                }
+            }
+        } else if (chartId == 'reportBarVolume') {
+            // Group trades by volume ranges
+            let ranges = [
+                { label: '1-100', min: 1, max: 100 },
+                { label: '101-500', min: 101, max: 500 },
+                { label: '501-1K', min: 501, max: 1000 },
+                { label: '1K-5K', min: 1001, max: 5000 },
+                { label: '5K+', min: 5001, max: Infinity }
+            ]
+            ranges.forEach(r => {
+                let matching = []
+                filteredTradesTrades.forEach(t => {
+                    let vol = t.buyQuantity || t.quantity || 0
+                    if (vol >= r.min && vol <= r.max) matching.push(t)
+                })
+                if (matching.length > 0) {
+                    xLabels.push(r.label)
+                    let sum = 0
+                    matching.forEach(t => { sum += t[amountCase.value + 'Proceeds'] || 0 })
+                    barData.push({ value: sum, itemStyle: { color: sum >= 0 ? '#22c55e' : '#ef4444' } })
+                }
+            })
+        }
+
+        var option = {
+            tooltip: { trigger: 'axis' },
+            grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+            xAxis: { type: 'category', data: xLabels, axisLabel: { color: white60 }, axisLine: { lineStyle: { color: white38 } } },
+            yAxis: { type: 'value', axisLabel: { color: white60, formatter: (v) => chartId.includes('Perf') || chartId.includes('Price') || chartId.includes('Volume') ? useThousandCurrencyFormat(v) : v }, splitLine: { lineStyle: { color: white38, width: 0.5 } } },
+            series: [{ type: 'bar', data: barData, itemStyle: { color: '#6366f1' } }]
+        }
+        myChart.setOption(option)
         resolve()
     })
 }

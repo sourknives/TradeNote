@@ -3091,6 +3091,28 @@ export const daysMargin = ref(2)
 export const calendarData = reactive({})
 export const miniCalendarsData = reactive([])
 export const uploadMfePrices = ref(true)
+export const calendarViewMode = ref('30')
+
+/**************************************
+* REPORTS
+**************************************/
+export const selectedReportTab = ref('overview')
+export const reportStats = reactive({})
+export const reportDetailedStats = reactive({})
+export const reportWinDayStats = reactive({})
+export const reportLossDayStats = reactive({})
+export const reportDrawdownStats = reactive({})
+export const reportCompareGroupA = reactive({})
+export const reportCompareGroupB = reactive({})
+export const reportCompareFiltersA = reactive({ symbol: '', tags: [], side: 'all', duration: 'all', plFilter: 'all', dateStart: null, dateEnd: null })
+export const reportCompareFiltersB = reactive({ symbol: '', tags: [], side: 'all', duration: 'all', plFilter: 'all', dateStart: null, dateEnd: null })
+export const reportTagBreakdown = reactive([])
+export const reportAdvancedXAxis = ref('pAndL')
+export const reportAdvancedYAxis = ref('volume')
+export const reportOverviewPeriod = ref(30)
+export const reportOverviewSubTab = ref('recent')
+export const reportDetailedSubTab = ref('daysTimes')
+export const reportChartsMounted = ref(false)
 
 /**************************************
 * DAILY
