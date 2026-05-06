@@ -1,4 +1,4 @@
-import { renderingCharts, pageId, filteredTrades, selectedMonth, calendarData, miniCalendarsData, timeZoneTrade, filteredTradesDaily } from "../stores/globals.js"
+import { renderingCharts, pageId, filteredTrades, selectedMonth, calendarData, miniCalendarsData, timeZoneTrade, filteredTradesDaily, calendarViewMode } from "../stores/globals.js"
 import { useMonthFormat } from "./utils.js"
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc.js'
@@ -38,7 +38,7 @@ export async function useLoadCalendar() {
             //console.log("date "+dayJsDate)
             let dateForCalendarize = new Date(dayjs.unix(param1)).toLocaleString("en-US", { timeZone: timeZoneTrade.value })
             //console.log(" date for calendarize "+dateForCalendarize)
-            let calendarizeData = calendarize(dateForCalendarize, 1) // this creates.value calendar date numbers needed for a table calendar
+            let calendarizeData = calendarize(dateForCalendarize, 0) // 0 = weeks start on Sunday
             //console.log("calendarizeData "+calendarizeData)
 
             //console.log("  --> Getting trade and creating json for each day of given month")
@@ -107,14 +107,28 @@ export async function useLoadCalendar() {
         //console.log("currentMonthNumber "+currentMonthNumber)
 
         if (pageId.value == 'calendar') {
-            let i = 0
-            if (pageId.value == 'calendar') {
-                while (i <= currentMonthNumber) {
+            let viewMode = calendarViewMode.value
+            if (viewMode == 'yearly') {
+                // Generate all 12 months of the selected year
+                let year = dayjs(selectedMonth.value.start * 1000).tz(timeZoneTrade.value).get('year')
+                // First create the selected month as calendarData (main/current month)
+                createCalendar(selectedMonth.value.start)
+                // Then create all other months as mini calendars
+                for (let m = 0; m < 12; m++) {
+                    let monthUnix = dayjs().tz(timeZoneTrade.value).year(year).month(m).startOf('month').unix()
+                    if (monthUnix != selectedMonth.value.start) {
+                        createCalendar(monthUnix)
+                    }
+                }
+            } else {
+                // 30/60/90 day modes: show 1/2/3 months
+                let monthsToShow = viewMode == '90' ? 3 : viewMode == '60' ? 2 : 1
+                // Create main month
+                createCalendar(selectedMonth.value.start)
+                // Create previous months as mini calendars
+                for (let i = 1; i < monthsToShow; i++) {
                     let tempUnix = dayjs(selectedMonth.value.start * 1000).tz(timeZoneTrade.value).subtract(i, 'month').startOf('month').unix()
-                    //this.calendarMonths.push(this.monthFormat(tempUnix))
-                    //console.log("tempUnix "+tempUnix)
                     createCalendar(tempUnix)
-                    i++
                 }
             }
         } else {

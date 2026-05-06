@@ -1,11 +1,12 @@
 import { useRoute } from "vue-router";
-import { pageId, timeZoneTrade, currentUser, periodRange, selectedDashTab, renderData, selectedPeriodRange, selectedPositions, selectedTimeFrame, selectedRatio, selectedAccount, selectedGrossNet, selectedPlSatisfaction, selectedBroker, selectedDateRange, selectedMonth, selectedAccounts, amountCase, screenshotsPagination, diaryUpdate, diaryButton, selectedItem, playbookUpdate, playbookButton, sideMenuMobileOut, spinnerLoadingPage, dashboardChartsMounted, dashboardIdMounted, hasData, renderingCharts, screenType, selectedRange, dailyQueryLimit, dailyPagination, endOfList, spinnerLoadMore, windowIsScrolled, legacy, selectedTags, tags, filteredTrades, idCurrent, idPrevious, idCurrentType, idCurrentNumber, idPreviousType, idPreviousNumber, screenshots, screenshotsInfos, tabGettingScreenshots, apis, layoutStyle, countdownInterval, countdownSeconds, barChartNegativeTagGroups, availableTags, groups } from "../stores/globals.js"
+import { pageId, timeZoneTrade, currentUser, periodRange, selectedDashTab, renderData, selectedPeriodRange, selectedPositions, selectedTimeFrame, selectedRatio, selectedAccount, selectedGrossNet, selectedPlSatisfaction, selectedBroker, selectedDateRange, selectedMonth, selectedAccounts, amountCase, screenshotsPagination, diaryUpdate, diaryButton, selectedItem, playbookUpdate, playbookButton, sideMenuMobileOut, spinnerLoadingPage, dashboardChartsMounted, dashboardIdMounted, hasData, renderingCharts, screenType, selectedRange, dailyQueryLimit, dailyPagination, endOfList, spinnerLoadMore, windowIsScrolled, legacy, selectedTags, tags, filteredTrades, idCurrent, idPrevious, idCurrentType, idCurrentNumber, idPreviousType, idPreviousNumber, screenshots, screenshotsInfos, tabGettingScreenshots, apis, layoutStyle, countdownInterval, countdownSeconds, barChartNegativeTagGroups, availableTags, groups, reportChartsMounted } from "../stores/globals.js"
 import { useECharts, useRenderDoubleLineChart, useRenderPieChart } from './charts.js';
 import { useDeleteDiary, useGetDiaries, useUploadDiary } from "./diary.js";
 import { useDeleteScreenshot, useGetScreenshots, useGetScreenshotsPagination } from '../utils/screenshots.js'
 import { useDeletePlaybook } from "./playbooks.js";
 import { useCalculateProfitAnalysis, useGetFilteredTrades, useGetFilteredTradesForDaily, useGroupTrades, useTotalTrades, useDeleteTrade, useDeleteExcursions } from "./trades.js";
 import { useLoadCalendar } from "./calendar.js";
+import { useCalculateReportStats } from "./reports.js";
 import { useGetAvailableTags, useGetExcursions, useGetSatisfactions, useGetTags, useGetNotes } from "./daily.js";
 
 /* MODULES */
@@ -190,7 +191,7 @@ export function useCheckCurrentUser() {
         }
         if (path == "/" || path == "/register") {
             if (currentUser.value) {
-                window.location.replace("/dashboard");
+                window.location.replace("/calendar");
             } else {
                 console.log("Your are not logged")
             }
@@ -219,6 +220,11 @@ export async function useGetPeriods() {
             label: "All",
             start: 0,
             end: 0
+        }, {
+            value: "last30Days",
+            label: "Last 30 Days",
+            start: Number(dayjs().tz(timeZoneTrade.value).subtract(30, 'day').startOf('day').unix()),
+            end: Number(dayjs().tz(timeZoneTrade.value).endOf('day').unix())
         }, {
             value: "thisWeek",
             label: "This Week",
@@ -853,6 +859,27 @@ export async function useMountCalendar(param) {
     await console.timeEnd("  --> Duration mount calendar")
 }
 
+export async function useMountReports() {
+    console.log("\nMOUNTING REPORTS")
+    await console.time("  --> Duration mount reports")
+    spinnerLoadingPage.value = true
+    reportChartsMounted.value = false
+    await useGetSelectedRange()
+    await Promise.all([useGetExcursions(), useGetSatisfactions(), useGetTags(), useGetAvailableTags()])
+    await useGetFilteredTrades()
+    await useTotalTrades()
+    await useGroupTrades()
+    await useCalculateProfitAnalysis()
+    await useCalculateReportStats()
+    spinnerLoadingPage.value = false
+    await console.timeEnd("  --> Duration mount reports")
+    if (hasData.value) {
+        reportChartsMounted.value = true
+        await (renderData.value += 1)
+        await useECharts("init")
+    }
+}
+
 export async function useMountScreenshots() {
     await (spinnerLoadingPage.value = true)
     console.log("\MOUNTING SCREENSHOTS")
@@ -918,7 +945,7 @@ export function usePageId() {
 
 export function useGetSelectedRange() {
     return new Promise(async (resolve, reject) => {
-        if (pageId.value == "dashboard") {
+        if (pageId.value == "dashboard" || pageId.value == "reports") {
             selectedRange.value = selectedDateRange.value
         } else if (pageId.value == "calendar") {
             selectedRange.value = {}
@@ -968,7 +995,11 @@ export async function useSetValues() {
         if (!localStorage.getItem('selectedBroker')) localStorage.setItem('selectedBroker', "tradeZero")
         selectedBroker.value = localStorage.getItem('selectedBroker')
 
-        if (!localStorage.getItem('selectedDateRange')) localStorage.setItem('selectedDateRange', JSON.stringify({ start: periodRange.filter(element => element.value == 'thisMonth')[0].start, end: periodRange.filter(element => element.value == 'thisMonth')[0].end }))
+        if (!localStorage.getItem('selectedDateRange')) {
+            const thirtyDaysAgo = Number(dayjs().tz(timeZoneTrade.value).subtract(30, 'day').startOf('day').unix())
+            const today = Number(dayjs().tz(timeZoneTrade.value).endOf('day').unix())
+            localStorage.setItem('selectedDateRange', JSON.stringify({ start: thirtyDaysAgo, end: today }))
+        }
         selectedDateRange.value = JSON.parse(localStorage.getItem('selectedDateRange'))
 
         if (!localStorage.getItem('selectedPeriodRange')) {

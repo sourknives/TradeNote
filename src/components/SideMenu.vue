@@ -15,15 +15,18 @@ import { useToggleMobileMenu } from "../utils/utils";
         <div class="sideMenuDiv">
             <div class="sideMenuDivContent">
                 <label class="fw-lighter">ANALYZE</label>
-                <a id="step3" v-bind:class="[pageId === 'dashboard' ? 'activeNavCss' : '', 'nav-link', 'mb-2']"
-                    href="/dashboard">
-                    <i class="uil uil-apps me-2"></i>Dashboard</a>
-                <a id="step4" v-bind:class="[pageId === 'daily' ? 'activeNavCss' : '', 'nav-link', 'mb-2']" href="/daily">
-                    <i class="uil uil-signal-alt-3 me-2"></i>Daily
-                </a>
                 <a id="step5" v-bind:class="[pageId === 'calendar' ? 'activeNavCss' : '', 'nav-link', 'mb-2']"
                     href="/calendar">
                     <i class="uil uil-calendar-alt me-2"></i>Calendar</a>
+                <a id="step3" v-bind:class="[pageId === 'dashboard' ? 'activeNavCss' : '', 'nav-link', 'mb-2']"
+                    href="/dashboard">
+                    <i class="uil uil-apps me-2"></i>Dashboard</a>
+                <a v-bind:class="[pageId === 'reports' ? 'activeNavCss' : '', 'nav-link', 'mb-2']"
+                    href="/reports">
+                    <i class="uil uil-chart-bar me-2"></i>Reports</a>
+                <a id="step4" v-bind:class="[pageId === 'daily' ? 'activeNavCss' : '', 'nav-link', 'mb-2']" href="/daily">
+                    <i class="uil uil-signal-alt-3 me-2"></i>Daily
+                </a>
             </div>
         </div>
 

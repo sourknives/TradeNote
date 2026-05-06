@@ -37,7 +37,7 @@ async function login() {
 
       console.log("Hooray! You are logged in")
       signingUp.value = false
-      window.location.replace("/dashboard");
+      window.location.replace("/calendar");
     } catch (error) {
       // Show the error message somewhere and let the user try again.
       signingUp.value = false
@@ -72,7 +72,7 @@ async function register() {
       await useGetPeriods()
       await useSetValues()
       console.log("Hooray! Let them use the app now")
-      window.location.replace("/dashboard");
+      window.location.replace("/calendar");
     } catch (error) {
       // Show the error message somewhere and let the user try again.
       alert("Error: " + error.code + " " + error.message);

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onBeforeMount, onMounted } from "vue";
-import { useMonthFormat, useDateCalFormat, useDateCalFormatMonth, useMountCalendar, useMountDashboard, useMountDaily, useCheckVisibleScreen, useExport } from "../utils/utils.js";
+import { useMonthFormat, useDateCalFormat, useDateCalFormatMonth, useMountCalendar, useMountDashboard, useMountDaily, useMountReports, useCheckVisibleScreen, useExport } from "../utils/utils.js";
 import { pageId, currentUser, timeZoneTrade, periodRange, positions, timeFrames, ratios, grossNet, plSatisfaction, selectedPositions, selectedTimeFrame, selectedRatio, selectedAccounts, selectedGrossNet, selectedPlSatisfaction, selectedDateRange, selectedMonth, selectedPeriodRange, tempSelectedPlSatisfaction, amountCase, amountCapital, hasData, selectedTags, tags, availableTags, filteredTradesTrades } from "../stores/globals"
 import { useECharts } from "../utils/charts.js";
 import { useRefreshScreenshot } from "../utils/screenshots"
@@ -27,10 +27,20 @@ dayjs.extend(customParseFormat)
 let filtersOpen = ref(false)
 let filters = ref({
     "dashboard": ["accounts", "periodRange", "grossNet", "positions", "timeFrame", "ratio", "tags"],
+    "reports": ["accounts", "periodRange", "grossNet", "positions", "tags"],
     "calendar": ["month", "grossNet", "plSatisfaction"],
     "daily": ["accounts", "month", "grossNet", "positions", "tags"],
     "screenshots": ["accounts", "grossNet", "positions", "tags"],
 })
+
+// Pinned period preset chips for Dashboard + Reports.
+// Values map to entries in `periodRange` populated by useGetPeriods().
+const periodPresets = [
+    { value: 'last30Days',            label: '30d' },
+    { value: 'lastThreeMonthsTilNow', label: '3M'  },
+    { value: 'thisYear',              label: 'YTD' },
+    { value: 'all',                   label: 'All' }
+]
 
 
 
@@ -191,6 +201,66 @@ function inputMonth(param1) {
     //console.log(" -> Selected Month "+JSON.stringify(selectedMonth.value))
 }
 
+/**
+ * Re-mount the current page after a filter change. Mirrors the mount-by-pageId
+ * switch at the bottom of saveFilter(); extracted so pinned-control handlers
+ * can re-render without going through saveFilter()'s temp-value reconciliation.
+ */
+async function applyAndMount() {
+    if ((pageId.value === "dashboard" || pageId.value === "reports") && hasData.value) {
+        useECharts("clear")
+    }
+    if (pageId.value === "dashboard") useMountDashboard()
+    if (pageId.value === "daily") {
+        await useMountDaily()
+        useCheckVisibleScreen()
+    }
+    if (pageId.value === "screenshots") {
+        await useRefreshScreenshot()
+        useCheckVisibleScreen()
+    }
+    if (pageId.value === "calendar") useMountCalendar(true)
+    if (pageId.value === "reports") useMountReports()
+}
+
+/**
+ * Pinned Gross/Net pill — apply on click.
+ */
+function pickGrossNet(value) {
+    selectedGrossNet.value = value
+    amountCase.value = value
+    amountCapital.value = value.charAt(0).toUpperCase() + value.slice(1)
+    localStorage.setItem('selectedGrossNet', value)
+    applyAndMount()
+}
+
+/**
+ * Pinned period preset chip — apply on click.
+ * Sets selectedPeriodRange to the matching periodRange entry and syncs
+ * selectedDateRange (start/end unix) so downstream code that reads either
+ * source stays consistent. Mirrors inputDateRange() behavior.
+ */
+function pickPeriod(value) {
+    const entry = periodRange.find(el => el.value === value)
+    if (!entry) return
+    selectedPeriodRange.value = entry
+    selectedDateRange.value = { start: entry.start, end: entry.end }
+    localStorage.setItem('selectedPeriodRange', JSON.stringify(selectedPeriodRange.value))
+    localStorage.setItem('selectedDateRange', JSON.stringify(selectedDateRange.value))
+    applyAndMount()
+}
+
+/**
+ * Pinned P&L vs Satisfaction toggle (Calendar) — apply on click.
+ * Bypasses the tempSelectedPlSatisfaction → selectedPlSatisfaction indirection
+ * used by the (now-removed) accordion path; pinned controls commit immediately.
+ */
+function pickPlSatisfaction(value) {
+    selectedPlSatisfaction.value = value
+    localStorage.setItem('selectedPlSatisfaction', value)
+    applyAndMount()
+}
+
 async function saveFilter() {
     console.log(" -> Save filters: Selected Date Range Cal " + JSON.stringify(selectedDateRange.value))
     console.log(" -> Save filters: Selected Period Range " + JSON.stringify(selectedPeriodRange.value))
@@ -204,7 +274,7 @@ async function saveFilter() {
     }
 
 
-    if (pageId.value == "dashboard" && selectedDateRange.value.end >= selectedDateRange.value.start && hasData.value) {
+    if ((pageId.value == "dashboard" || pageId.value == "reports") && selectedDateRange.value.end >= selectedDateRange.value.start && hasData.value) {
         useECharts("clear")
     }
 
@@ -251,6 +321,10 @@ async function saveFilter() {
     if (pageId.value == "calendar") {
         useMountCalendar(true)
     }
+
+    if (pageId.value == "reports") {
+        useMountReports()
+    }
 }
 
 let allTagsSelected = ref(false)
@@ -293,6 +367,67 @@ const selectAllTags = () => {
 </script>
 
 <template>
+    <!-- ── PINNED FILTER BAR (always visible, apply on click) ────────────── -->
+    <div class="col-12 mb-2" v-show="hasData">
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+
+            <!-- Gross / Net pill (every page that uses grossNet) -->
+            <div
+                v-show="filters[pageId] && filters[pageId].includes('grossNet')"
+                class="btn-group btn-group-sm"
+                role="group"
+                aria-label="Gross or Net P&L"
+            >
+                <button
+                    type="button"
+                    :class="'btn ' + (selectedGrossNet === 'gross' ? 'btn-primary' : 'btn-outline-secondary')"
+                    @click="pickGrossNet('gross')"
+                >Gross</button>
+                <button
+                    type="button"
+                    :class="'btn ' + (selectedGrossNet === 'net' ? 'btn-primary' : 'btn-outline-secondary')"
+                    @click="pickGrossNet('net')"
+                >Net</button>
+            </div>
+
+            <!-- Period preset chips (Dashboard + Reports) -->
+            <div
+                v-show="filters[pageId] && filters[pageId].includes('periodRange')"
+                class="btn-group btn-group-sm"
+                role="group"
+                aria-label="Period preset"
+            >
+                <button
+                    type="button"
+                    v-for="preset in periodPresets"
+                    :key="preset.value"
+                    :class="'btn ' + (selectedPeriodRange && selectedPeriodRange.value === preset.value ? 'btn-primary' : 'btn-outline-secondary')"
+                    @click="pickPeriod(preset.value)"
+                >{{ preset.label }}</button>
+            </div>
+
+            <!-- P&L / Satisfaction color toggle (Calendar) -->
+            <div
+                v-show="filters[pageId] && filters[pageId].includes('plSatisfaction')"
+                class="btn-group btn-group-sm"
+                role="group"
+                aria-label="Calendar color mode"
+            >
+                <button
+                    type="button"
+                    :class="'btn ' + (selectedPlSatisfaction === 'pl' ? 'btn-primary' : 'btn-outline-secondary')"
+                    @click="pickPlSatisfaction('pl')"
+                >P&amp;L</button>
+                <button
+                    type="button"
+                    :class="'btn ' + (selectedPlSatisfaction === 'satisfaction' ? 'btn-primary' : 'btn-outline-secondary')"
+                    @click="pickPlSatisfaction('satisfaction')"
+                >Satisfaction</button>
+            </div>
+
+        </div>
+    </div>
+
     <!-- ============ LINE 1: DATE FILTERS ============ -->
     <div id="step10" class="col-12 mb-3">
         <div class="dailyCard">
@@ -355,7 +490,7 @@ const selectAllTags = () => {
 
             <div v-show="filtersOpen" class="row text-center align-items-center">
                 <!-- Date : periode -->
-                <div class="col-12 col-lg-4 mt-1 mt-lg-0 mb-lg-1" v-show="pageId == 'dashboard'">
+                <div class="col-12 col-lg-4 mt-1 mt-lg-0 mb-lg-1" v-show="pageId == 'dashboard' || pageId == 'reports'">
                     <select v-on:input="inputDateRange($event.target.value)" class="form-select">
                         <option v-for="item in periodRange" :key="item.value" :value="item.value"
                             :selected="item.value == selectedPeriodRange.value">{{ item.label }}</option>
@@ -363,7 +498,7 @@ const selectAllTags = () => {
                 </div>
 
                 <!-- Date : calendar -->
-                <div class="col-12 col-lg-8 mt-1 mt-lg-0 mb-1" v-show="pageId == 'dashboard'">
+                <div class="col-12 col-lg-8 mt-1 mt-lg-0 mb-1" v-show="pageId == 'dashboard' || pageId == 'reports'">
                     <div class="row">
                         <div class="col-5">
                             <input type="date" class="form-control" :value="useDateCalFormat(selectedDateRange.start)"
@@ -466,14 +601,6 @@ const selectAllTags = () => {
                     <select v-on:input="selectedRatio = $event.target.value" class="form-select">
                         <option v-for="item in ratios" :key="item.value" :value="item.value"
                             :selected="item.value == selectedRatio">{{ item.label }}</option>
-                    </select>
-                </div>
-
-                <!-- P&L / Satisfaction  -->
-                <div :class="[pageId == 'daily' ? 'col-4' : 'col-3']" v-show="pageId == 'calendar'">
-                    <select v-on:input="tempSelectedPlSatisfaction = $event.target.value" class="form-select">
-                        <option v-for="item in plSatisfaction" :key="item.value" :value="item.value"
-                            :selected="item.value == selectedPlSatisfaction">{{ item.label }}</option>
                     </select>
                 </div>
 

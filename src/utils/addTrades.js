@@ -2293,7 +2293,7 @@ export async function useUploadTrades(param99, param0) {
 
     }
     else {
-        window.location.href = "/dashboard"
+        window.location.href = "/calendar"
     }
 
 }
