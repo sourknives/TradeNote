@@ -7,6 +7,7 @@ services:
       context: .
       dockerfile: ./docker/Dockerfile
     image: tradenote:latest
+    restart: always
     ports:
       - 8080:8080
     links:
@@ -20,6 +21,7 @@ services:
   mongo:
     image: mongo:latest
     container_name: tradenote_db
+    restart: always
     volumes:
       - tradenote_db:/data/db
     ports:
