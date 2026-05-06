@@ -1,9 +1,8 @@
 <script setup>
-import { onBeforeMount, onMounted, computed, reactive, ref } from 'vue';
+import { onBeforeMount, onMounted, computed, reactive, ref, nextTick } from 'vue';
 import Filters from '../components/Filters.vue'
 import NoData from '../components/NoData.vue';
 import SpinnerLoadingPage from '../components/SpinnerLoadingPage.vue';
-import Calendar from '../components/Calendar.vue';
 import Screenshot from '../components/Screenshot.vue'
 
 import { spinnerLoadingPage, calendarData, filteredTrades, screenshots, diaries, modalDailyTradeOpen, amountCase, markerAreaOpen, screenshot, tradeScreenshotChanged, excursion, tradeExcursionChanged, spinnerSetups, spinnerSetupsText, tradeExcursionId, tradeExcursionDateUnix, hasData, tradeId, excursions, saveButton, itemTradeIndex, tradeIndex, tradeIndexPrevious, spinnerLoadMore, endOfList, selectedGrossNet, availableTags, tradeTagsChanged, tagInput, tags, tradeTags, showTagsList, selectedTagIndex, tradeTagsId, tradeTagsDateUnix, newTradeTags, notes, tradeNote, tradeNoteChanged, tradeNoteDateUnix, tradeNoteId, availableTagsArray, timeZoneTrade, screenshotsInfos, idCurrentType, idCurrentNumber, tabGettingScreenshots, currentUser, apis, satisfactionTradeArray, satisfactionArray } from '../stores/globals';
@@ -100,6 +99,18 @@ onMounted(async () => {
         const index = caller.dataset.index
         clickTagsModal(index)
     })
+
+    // If we arrived from a Calendar day-cell click, scroll the matching
+    // day card into view. One-shot: clear after use so subsequent /daily
+    // loads don't keep scrolling.
+    const jumpDate = sessionStorage.getItem('jumpToDailyDate')
+    if (jumpDate) {
+        sessionStorage.removeItem('jumpToDailyDate')
+        nextTick(() => {
+            const el = document.getElementById('day-' + jumpDate)
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        })
+    }
 })
 
 
@@ -776,9 +787,9 @@ function getOHLC(date, symbol, type) {
             <!-- added v-if instead v-show because need to wait for patterns to load -->
             <div class="row">
                 <!-- ============ CARD ============ -->
-                <div class="col-12 col-xl-8">
+                <div class="col-12">
                     <!-- v-show insead of v-if or else init tab does not work cause div is not created until spinner is false-->
-                    <div v-for="(itemTrade, index) in filteredTrades" class="row mt-2">
+                    <div :id="'day-' + itemTrade.dateUnix" v-for="(itemTrade, index) in filteredTrades" class="row mt-2">
                         <div class="col-12">
                             <div class="dailyCard">
                                 <div class="row">
@@ -1137,15 +1148,7 @@ function getOHLC(date, symbol, type) {
                     </div>
                 </div>
                 <!-- end card-->
-                <!-- ============ CALENDAR ============ -->
-                <div v-show="calendarData && !spinnerLoadingPage"
-                    class="col-12 col-xl-4 text-center mt-2 align-self-start">
-                    <div class="dailyCard calCard">
-                        <div class="row">
-                            <Calendar />
-                        </div>
-                    </div>
-                </div>
+                <!-- Sidebar Calendar widget removed — use the Calendar page (click a day to jump back here) -->
             </div>
 
             <!-- Load more spinner -->

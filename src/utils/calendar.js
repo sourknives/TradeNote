@@ -43,6 +43,9 @@ export async function useLoadCalendar() {
 
             //console.log("  --> Getting trade and creating json for each day of given month")
             let calendarJson = {}
+            // Carry the month start unix so mini-cal click handlers can jump
+            // back to this month without parsing the formatted month string.
+            calendarJson.__monthStartUnix = dayjs(param1 * 1000).tz(timeZoneTrade.value).startOf('month').unix()
             //let month = dayjs.unix(param1).get('month') + 1 //starts at 0
             let month = dayjs(param1 * 1000).tz(timeZoneTrade.value).get('month') + 1 //starts at 0 so here we add 1 to get the 'real' month number
             let year = dayjs(param1 * 1000).tz(timeZoneTrade.value).get('year')
@@ -81,6 +84,7 @@ export async function useLoadCalendar() {
                         //console.log("pAndL "+JSON.stringify(trade.pAndL))
                         tempData.pAndL = trade.pAndL
                         tempData.satisfaction = trade.satisfaction
+                        tempData.dateUnix = trade.dateUnix
                     } else {
                         tempData.pAndL = []
                     }
@@ -95,9 +99,11 @@ export async function useLoadCalendar() {
                 for (let key in calendarData) delete calendarData[key]
                 Object.assign(calendarData, calendarJson)
                 //console.log("calendarData "+JSON.stringify(calendarData))
-            } else {
-                miniCalendarsData.unshift(calendarJson)
             }
+            // Always also push into miniCalendarsData so the year-at-a-glance
+            // grid below the main calendar shows all 12 months including the
+            // currently-selected one (it gets an "active" highlight there).
+            miniCalendarsData.push(calendarJson)
 
 
         }
@@ -107,29 +113,15 @@ export async function useLoadCalendar() {
         //console.log("currentMonthNumber "+currentMonthNumber)
 
         if (pageId.value == 'calendar') {
-            let viewMode = calendarViewMode.value
-            if (viewMode == 'yearly') {
-                // Generate all 12 months of the selected year
-                let year = dayjs(selectedMonth.value.start * 1000).tz(timeZoneTrade.value).get('year')
-                // First create the selected month as calendarData (main/current month)
-                createCalendar(selectedMonth.value.start)
-                // Then create all other months as mini calendars
-                for (let m = 0; m < 12; m++) {
-                    let monthUnix = dayjs().tz(timeZoneTrade.value).year(year).month(m).startOf('month').unix()
-                    if (monthUnix != selectedMonth.value.start) {
-                        createCalendar(monthUnix)
-                    }
-                }
-            } else {
-                // 30/60/90 day modes: show 1/2/3 months
-                let monthsToShow = viewMode == '90' ? 3 : viewMode == '60' ? 2 : 1
-                // Create main month
-                createCalendar(selectedMonth.value.start)
-                // Create previous months as mini calendars
-                for (let i = 1; i < monthsToShow; i++) {
-                    let tempUnix = dayjs(selectedMonth.value.start * 1000).tz(timeZoneTrade.value).subtract(i, 'month').startOf('month').unix()
-                    createCalendar(tempUnix)
-                }
+            // New default: always show the year-at-a-glance with all 12 months
+            // in Jan → Dec order (the old 30/60/90/yearly view-mode toggle is
+            // gone). The currently-selected month is rendered both in the main
+            // calendar grid (via calendarData) and in miniCalendarsData (so it
+            // appears in the 12-month grid with an "active" border).
+            let year = dayjs(selectedMonth.value.start * 1000).tz(timeZoneTrade.value).get('year')
+            for (let m = 0; m < 12; m++) {
+                let monthUnix = dayjs().tz(timeZoneTrade.value).year(year).month(m).startOf('month').unix()
+                createCalendar(monthUnix)
             }
         } else {
             //console.log(" creating from selected month "+selectedMonth.value.start)

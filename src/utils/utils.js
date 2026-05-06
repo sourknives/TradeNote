@@ -948,9 +948,12 @@ export function useGetSelectedRange() {
         if (pageId.value == "dashboard" || pageId.value == "reports") {
             selectedRange.value = selectedDateRange.value
         } else if (pageId.value == "calendar") {
+            // Load the entire displayed year so the year-at-a-glance mini-cals
+            // can populate red/green for every month, not just up to the
+            // currently-selected month.
             selectedRange.value = {}
             selectedRange.value.start = dayjs.unix(selectedMonth.value.start).tz(timeZoneTrade.value).startOf('year').unix()
-            selectedRange.value.end = selectedMonth.value.end
+            selectedRange.value.end = dayjs.unix(selectedMonth.value.start).tz(timeZoneTrade.value).endOf('year').unix()
             //console.log("SelectedRange "+JSON.stringify(selectedRange.value))
         }
         else {

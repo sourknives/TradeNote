@@ -28,7 +28,7 @@ let filtersOpen = ref(false)
 let filters = ref({
     "dashboard": ["accounts", "periodRange", "grossNet", "positions", "timeFrame", "ratio", "tags"],
     "reports": ["accounts", "periodRange", "grossNet", "positions", "tags"],
-    "calendar": ["month", "grossNet", "plSatisfaction"],
+    "calendar": ["month", "grossNet"],
     "daily": ["accounts", "month", "grossNet", "positions", "tags"],
     "screenshots": ["accounts", "grossNet", "positions", "tags"],
 })
@@ -39,6 +39,7 @@ const periodPresets = [
     { value: 'last30Days',            label: '30d' },
     { value: 'lastThreeMonthsTilNow', label: '3M'  },
     { value: 'thisYear',              label: 'YTD' },
+    { value: 'lastYear',              label: 'LY'  },
     { value: 'all',                   label: 'All' }
 ]
 
