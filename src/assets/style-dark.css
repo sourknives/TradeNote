@@ -808,9 +808,8 @@ ol li[data-list="bullet"] {
     .calDivDash {
         margin: 1px;
         border: 1px solid lightgray;
-        height: 90px;
-        width: 40px;
-        padding: 1em;
+        height: 110px;
+        padding: 0.4em;
     }
 
 }

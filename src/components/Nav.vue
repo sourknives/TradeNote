@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted, computed } from 'vue';
 import { useCheckCloudPayment, useGetCurrentUser, useToggleMobileMenu } from '../utils/utils.js'
 import { useInitShepherd, useInitTooltip } from "../utils/utils.js";
 import { pageId, currentUser, renderProfile, screenType, latestVersion } from "../stores/globals"
@@ -18,6 +18,11 @@ const pages = [{
     id: "dashboard",
     name: "Dashboard",
     icon: "uil uil-apps"
+},
+{
+    id: "reports",
+    name: "Reports",
+    icon: "uil uil-chart-bar"
 },
 {
     id: "daily",
@@ -115,6 +120,11 @@ const pages = [{
     icon: "uil uil-shopping-cart"
 }
 ]
+
+// Defensive lookup so the template never crashes when pageId hasn't been set
+// yet (initial mount) or doesn't appear in `pages` (legacy/added route).
+const currentPage = computed(() => pages.find(p => p.id === pageId.value) || { name: '', icon: '' })
+
 //console.log(" user "+useCheckCurrentUser())
 onMounted(async () => {
     await getLatestVersion()
@@ -189,12 +199,10 @@ const navAdd = async (param) => {
         <div class="col-6">
             <span v-if="screenType == 'mobile'">
                 <a v-on:click="useToggleMobileMenu">
-                    <i v-bind:class="pages.filter(item => item.id == pageId)[0].icon" class="me-1"></i>{{
-                        pages.filter(item => item.id == pageId)[0].name }}</a>
+                    <i v-bind:class="currentPage.icon" class="me-1"></i>{{ currentPage.name }}</a>
             </span>
             <span v-else>
-                <i v-bind:class="pages.filter(item => item.id == pageId)[0].icon" class="me-1"></i>{{
-                    pages.filter(item => item.id == pageId)[0].name }}</span>
+                <i v-bind:class="currentPage.icon" class="me-1"></i>{{ currentPage.name }}</span>
         </div>
         <div class="col-6 ms-auto text-end">
             <div class="row">
