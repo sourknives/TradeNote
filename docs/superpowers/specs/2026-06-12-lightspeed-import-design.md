@@ -135,8 +135,10 @@ No changes to the trade-pairing engine, reports, or UI beyond the dropdown entry
   chronologically; each completed in/out cycle becomes one trade.
 - **Trailing empty line / padded quotes** — `skipEmptyLines` + per-field trim.
 - **Timezone** — execution times are passed naive; TradeNote applies the user's
-  `timeZoneTrade` setting (same as all brokers). User must set their TradeNote
-  timezone to match the timezone of the Lightspeed export.
+  `timeZoneTrade` setting (same as all brokers). Times are treated as **market
+  time, US Eastern (America/New_York)** — Lightspeed exports in ET and the user's
+  TradeNote timezone must be set to Eastern. The verification tests assert P&L
+  groups by trade date under ET.
 - **Wrong file uploaded** (daily summary instead of blotter) — required-column
   validation rejects it with a clear message.
 
