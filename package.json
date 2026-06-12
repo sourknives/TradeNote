@@ -8,7 +8,8 @@
   "scripts": {
     "start": "node index.mjs",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "@stripe/stripe-js": "^5.2.0",
@@ -38,7 +39,8 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.1.2",
-    "vite": "^5.4.2"
+    "vite": "^5.4.2",
+    "vitest": "^2.1.8"
   },
   "main": "index.mjs"
 }
