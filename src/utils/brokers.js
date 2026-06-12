@@ -23,6 +23,7 @@ dayjs.extend(customParseFormat)
 import Papa from 'papaparse';
 import _ from 'lodash'
 import * as XLSX from 'xlsx';
+import { parseLightspeedExecutions } from './lightspeedParser.js'
 
 
 tradesData.length = 0
@@ -1894,4 +1895,24 @@ function parseWebullCsvDateTime(dateTimeStr) {
     const date = parts[0] || ""    // MM/DD/YYYY
     const time = parts[1] || "00:00:00"  // HH:mm:ss
     return { date, time }
+}
+
+/****************************
+ * LIGHTSPEED
+ ****************************/
+// Lightspeed "execution blotter" CSV (one row per fill). The parsing logic
+// lives in ./lightspeedParser.js so it can be unit-tested without globals.
+export async function useBrokerLightspeed(param) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const rows = parseLightspeedExecutions(param)
+            rows.forEach(row => tradesData.push(JSON.parse(JSON.stringify(row))))
+            console.log(" -> Lightspeed Trades Data\n" + JSON.stringify(tradesData))
+        } catch (error) {
+            console.log("  --> ERROR " + error)
+            reject(error)
+            return
+        }
+        resolve()
+    })
 }
