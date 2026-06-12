@@ -3319,6 +3319,12 @@ export const brokers = reactive([{
     label: "Webull",
     assetTypes: ["stocks", "options"],
     autoSync: false
+},
+{
+    value: "lightspeed",
+    label: "Lightspeed",
+    assetTypes: ["stocks"],
+    autoSync: false
 }
 ])
 
