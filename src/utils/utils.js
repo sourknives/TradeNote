@@ -948,12 +948,12 @@ export function useGetSelectedRange() {
         if (pageId.value == "dashboard" || pageId.value == "reports") {
             selectedRange.value = selectedDateRange.value
         } else if (pageId.value == "calendar") {
-            // Load the entire displayed year so the year-at-a-glance mini-cals
-            // can populate red/green for every month, not just up to the
-            // currently-selected month.
-            selectedRange.value = {}
-            selectedRange.value.start = dayjs.unix(selectedMonth.value.start).tz(timeZoneTrade.value).startOf('year').unix()
-            selectedRange.value.end = dayjs.unix(selectedMonth.value.start).tz(timeZoneTrade.value).endOf('year').unix()
+            // Calendar always shows ALL logged trades, never limited by the
+            // Filters bar. {start:0, end:0} is the "all dates" sentinel honored
+            // by useGetTrades (fetch all) and loopTrades (no client-side date
+            // filter); loopTrades also bypasses account/position/tag for the
+            // calendar page. The displayed year still derives from selectedMonth.
+            selectedRange.value = { start: 0, end: 0 }
             //console.log("SelectedRange "+JSON.stringify(selectedRange.value))
         }
         else {

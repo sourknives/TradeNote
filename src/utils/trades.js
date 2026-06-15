@@ -155,7 +155,9 @@ export async function useGetFilteredTrades(param) {
                             }
                         }
 
-                        if ((selectedRange.value.start === 0 && selectedRange.value.end === 0 ? element.td >= selectedRange.value.start : element.td >= selectedRange.value.start && element.td < selectedRange.value.end) && selectedPositions.value.includes(element.strategy) && selectedAccounts.value.includes(element.account) && tradeTagsSelected) {
+                        // Calendar page ignores ALL filters (date/account/position/tag)
+                        // and always includes every logged trade.
+                        if (pageId.value === "calendar" || ((selectedRange.value.start === 0 && selectedRange.value.end === 0 ? element.td >= selectedRange.value.start : element.td >= selectedRange.value.start && element.td < selectedRange.value.end) && selectedPositions.value.includes(element.strategy) && selectedAccounts.value.includes(element.account) && tradeTagsSelected)) {
 
                             /**
                              * We're using tempArray to be able to group
@@ -307,8 +309,12 @@ export async function useGetTrades(param) {
             let endD = selectedRange.value.end
             //console.log("start D "+startD)
             //console.log("end D "+endD)
-            query.greaterThanOrEqualTo("dateUnix", startD)
-            query.lessThan("dateUnix", endD)
+            // {start:0, end:0} is the "all dates" sentinel (e.g. calendar page):
+            // fetch every trade with no date bounds.
+            if (!(startD === 0 && endD === 0)) {
+                query.greaterThanOrEqualTo("dateUnix", startD)
+                query.lessThan("dateUnix", endD)
+            }
             query.ascending("dateUnix");
             query.limit(queryLimit.value);
         }
