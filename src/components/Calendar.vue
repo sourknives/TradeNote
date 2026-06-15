@@ -184,7 +184,8 @@ async function jumpToMiniMonth(calData) {
             <!-- Fixed-pixel grid: cells stay 130×150 regardless of viewport -->
             <!-- Day-of-week + Week column headers -->
             <div class="tvRow text-center mt-2 mb-1">
-                <div class="tvHeaderCell" v-for="day in days" :key="'h-' + day">
+                <div v-for="(day, di) in days" :key="'h-' + day"
+                    v-bind:class="['tvHeaderCell', { 'tvWeekendHeader': di === 0 || di === 6 }]">
                     <small class="dashInfoTitle">{{ day }}</small>
                 </div>
                 <div class="tvHeaderCell">
@@ -199,7 +200,7 @@ async function jumpToMiniMonth(calData) {
                     v-on:click="jumpToDaily(cell)"
                     v-bind:class="[
                         'tvCell',
-                        { 'tvCellClickable': cell && cell.pAndL && cell.pAndL.trades }
+                        { 'tvCellClickable': cell && cell.pAndL && cell.pAndL.trades, 'tvWeekend': ci === 0 || ci === 6 }
                     ]">
                     <div class="tvDayNum" v-show="cell && cell.day">{{ cell && cell.day }}</div>
                     <div v-if="cellPL(cell) !== null"
@@ -277,7 +278,8 @@ async function jumpToMiniMonth(calData) {
                                 <div v-show="line[dIdx] != 0"
                                     v-bind:class="[{
                                         'greenTradeDiv': line[dIdx] && line[dIdx].pAndL && line[dIdx].pAndL[amountCase + 'Proceeds'] >= 0,
-                                        'redTradeDiv': line[dIdx] && line[dIdx].pAndL && line[dIdx].pAndL[amountCase + 'Proceeds'] < 0
+                                        'redTradeDiv': line[dIdx] && line[dIdx].pAndL && line[dIdx].pAndL[amountCase + 'Proceeds'] < 0,
+                                        'tvWeekendMini': dIdx === 0 || dIdx === 6
                                     }, 'calDivMini', 'col']"
                                     v-bind:style="'position: relative;'">
                                     <p class="mb-1 dayNumber" v-show="line[dIdx] && line[dIdx].day">{{ line[dIdx] && line[dIdx].day }}</p>

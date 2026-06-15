@@ -863,6 +863,12 @@ ol li[data-list="bullet"] {
 .tvCell.tvCellClickable { cursor: pointer; }
 .tvCell.tvCellClickable:hover { background: rgba(255, 255, 255, 0.04); }
 
+/* Weekend (Sat/Sun) columns — non-trading days, muted gray */
+.tvHeaderCell.tvWeekendHeader { opacity: 0.5; }
+.tvCell.tvWeekend { background: rgba(255, 255, 255, 0.05); }
+.tvCell.tvWeekend .tvDayNum { color: rgba(255, 255, 255, 0.4); }
+.calDivMini.tvWeekendMini:not(.greenTradeDiv):not(.redTradeDiv) { background: rgba(255, 255, 255, 0.05); }
+
 .tvDayNum {
     font-size: 16px;
     font-weight: 600;
