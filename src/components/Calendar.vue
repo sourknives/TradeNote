@@ -263,12 +263,12 @@ async function jumpToMiniMonth(calData) {
             <div class="col-6 col-md-4 col-xl-3 mb-3"
                 v-for="(calData, index) in miniCalendarsData"
                 :key="'mc-' + index">
-                <div v-bind:class="[
-                    'row me-2',
+                <div v-on:click="jumpToMiniMonth(calData)"
+                    v-bind:class="[
+                    'row me-2 tvMiniCalTile',
                     { 'tvMiniCalActive': calData.__monthStartUnix === selectedMonth.start }
                 ]">
-                    <div class="tvMiniCalHeader fw-bold mb-1"
-                        v-on:click="jumpToMiniMonth(calData)">
+                    <div class="tvMiniCalHeader fw-bold mb-1">
                         {{ calData[0][0].month }}
                     </div>
                     <div class="col miniCalBox" v-for="(day, dIdx) in days" :key="'mc-' + index + '-h-' + dIdx">

@@ -920,6 +920,9 @@ ol li[data-list="bullet"] {
     border-radius: 4px;
     padding: 2px;
 }
+/* Whole mini-calendar tile is clickable (jumps to that month) */
+.tvMiniCalTile { cursor: pointer; border-radius: 4px; }
+.tvMiniCalTile:hover { background: rgba(255, 255, 255, 0.03); }
 .tvMiniCalHeader {
     cursor: pointer;
     transition: color 0.15s;
