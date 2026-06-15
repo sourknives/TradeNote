@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { pageId, selectedMonth, selectedPlSatisfaction, amountCase, calendarData, miniCalendarsData, timeZoneTrade, spinnerLoadingPage, calendarViewMode } from '../stores/globals';
+import { pageId, selectedMonth, selectedPlSatisfaction, amountCase, amountCapital, selectedGrossNet, calendarData, miniCalendarsData, timeZoneTrade, spinnerLoadingPage, calendarViewMode } from '../stores/globals';
 import { useThousandCurrencyFormat, useMountCalendar, useMountDaily } from '../utils/utils';
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc.js'
@@ -89,6 +89,17 @@ function cellPL(cell) {
     return typeof v === 'number' ? v : null
 }
 
+// ── Gross/Net toggle (Calendar) ─────────────────────────────────────────
+// Uses the app-wide selectedGrossNet localStorage key so the choice persists
+// and stays consistent across views. The grid reads amountCase reactively, so
+// no refetch/remount is needed.
+function pickGrossNetCalendar(value) {
+    selectedGrossNet.value = value
+    amountCase.value = value
+    amountCapital.value = value.charAt(0).toUpperCase() + value.slice(1)
+    localStorage.setItem('selectedGrossNet', value)
+}
+
 // ── Click handlers ──────────────────────────────────────────────────────
 async function monthLastNext(param) {
     await (spinnerLoadingPage.value = true)
@@ -124,6 +135,19 @@ async function jumpToMiniMonth(calData) {
 }
 </script>
 <template>
+    <!-- ── Gross/Net toggle (Calendar only) ──────────────────────────────── -->
+    <div v-show="pageId === 'calendar'" class="col-12 d-flex justify-content-center mb-1">
+        <div style="display:inline-flex; gap:6px; align-items:center; font-size:13px;">
+            <span class="pointerClass"
+                v-bind:class="amountCase === 'gross' ? 'fw-bold' : 'dashInfoTitle'"
+                v-on:click="pickGrossNetCalendar('gross')">Gross</span>
+            <span class="dashInfoTitle">/</span>
+            <span class="pointerClass"
+                v-bind:class="amountCase === 'net' ? 'fw-bold' : 'dashInfoTitle'"
+                v-on:click="pickGrossNetCalendar('net')">Net</span>
+        </div>
+    </div>
+
     <!-- ── Header row above the main grid: ◀  Month YYYY  $±total/trades ── -->
     <div class="col-12">
         <div v-bind:class="[pageId === 'calendar' ? 'justify-content-center' : '', 'row']">
@@ -178,10 +202,6 @@ async function jumpToMiniMonth(calData) {
                         { 'tvCellClickable': cell && cell.pAndL && cell.pAndL.trades }
                     ]">
                     <div class="tvDayNum" v-show="cell && cell.day">{{ cell && cell.day }}</div>
-                    <i v-if="cell && cell.satisfaction === true"
-                        class="uil uil-thumbs-up tvSatIcon tvWin"></i>
-                    <i v-if="cell && cell.satisfaction === false"
-                        class="uil uil-thumbs-down tvSatIcon tvLoss"></i>
                     <div v-if="cellPL(cell) !== null"
                         v-bind:class="['tvAmount', cellPL(cell) >= 0 ? 'tvWin' : 'tvLoss']">
                         {{ useThousandCurrencyFormat(parseInt(cellPL(cell))) }}
@@ -256,17 +276,11 @@ async function jumpToMiniMonth(calData) {
                             <div class="row">
                                 <div v-show="line[dIdx] != 0"
                                     v-bind:class="[{
-                                        'greenTradeDiv': selectedPlSatisfaction == 'pl' ? (line[dIdx] && line[dIdx].pAndL && line[dIdx].pAndL[amountCase + 'Proceeds'] >= 0) : line[dIdx] && line[dIdx].satisfaction === true,
-                                        'redTradeDiv': selectedPlSatisfaction == 'pl' ? (line[dIdx] && line[dIdx].pAndL && line[dIdx].pAndL[amountCase + 'Proceeds'] < 0) : line[dIdx] && line[dIdx].satisfaction === false
+                                        'greenTradeDiv': line[dIdx] && line[dIdx].pAndL && line[dIdx].pAndL[amountCase + 'Proceeds'] >= 0,
+                                        'redTradeDiv': line[dIdx] && line[dIdx].pAndL && line[dIdx].pAndL[amountCase + 'Proceeds'] < 0
                                     }, 'calDivMini', 'col']"
                                     v-bind:style="'position: relative;'">
                                     <p class="mb-1 dayNumber" v-show="line[dIdx] && line[dIdx].day">{{ line[dIdx] && line[dIdx].day }}</p>
-                                    <i v-if="line[dIdx] && line[dIdx].satisfaction === true"
-                                        class="uil uil-thumbs-up"
-                                        style="position: absolute; top: 0; right: 1px; font-size: 9px; color: #22c55e;"></i>
-                                    <i v-if="line[dIdx] && line[dIdx].satisfaction === false"
-                                        class="uil uil-thumbs-down"
-                                        style="position: absolute; top: 0; right: 1px; font-size: 9px; color: #ef4444;"></i>
                                 </div>
                             </div>
                         </div>
