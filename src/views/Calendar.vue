@@ -1,13 +1,13 @@
 <script setup>
 import { onBeforeMount } from 'vue'
 import SpinnerLoadingPage from '../components/SpinnerLoadingPage.vue';
-import Filters from '../components/Filters.vue'
 import NoData from '../components/NoData.vue';
 import Calendar from '../components/Calendar.vue';
 import { spinnerLoadingPage, calendarData, filteredTrades } from '../stores/globals';
-import { useMountCalendar } from '../utils/utils'
+import { useMountCalendar, useSetCalendarToCurrentMonth } from '../utils/utils'
 
 onBeforeMount(async () => {
+    useSetCalendarToCurrentMonth()
     useMountCalendar()
 })
 </script>
@@ -15,8 +15,6 @@ onBeforeMount(async () => {
 <template>
     <SpinnerLoadingPage />
     <div v-show="!spinnerLoadingPage" class="row mt-2 mb-2">
-        <Filters />
-
         <div v-if="filteredTrades.length == 0">
             <NoData />
         </div>

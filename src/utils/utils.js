@@ -848,6 +848,18 @@ export async function useMountDaily() {
 
 }
 
+export function useSetCalendarToCurrentMonth() {
+    // Calendar always lands on the current month (computed fresh in market time).
+    // Set the ref only — the calendar's own navigation persists selectedMonth to
+    // localStorage; we deliberately don't touch localStorage so the Daily page's
+    // remembered month is unaffected. Call this from the Calendar view's
+    // onBeforeMount (NOT inside useMountCalendar, which navigation re-invokes).
+    selectedMonth.value = {
+        start: Number(dayjs().tz(timeZoneTrade.value).startOf('month').unix()),
+        end: Number(dayjs().tz(timeZoneTrade.value).endOf('month').unix())
+    }
+}
+
 export async function useMountCalendar(param) {
     console.log("\MOUNTING CALENDAR")
     await console.time("  --> Duration mount calendar");
